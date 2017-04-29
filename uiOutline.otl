@@ -1,0 +1,35 @@
+customer view
+	rental process
+		reserve car
+			specify car wanted
+			specify when wanted
+			see if its available
+				if at location
+					check not reserved
+			update charge parameters
+				misc charges
+				insurance rate
+				fuel rate
+			create new rental object
+		take out car
+			pick up at location
+			remove car from at relation
+		return car
+			set car as returned
+			calculate cost
+				dropoff charge * rate / dissim
+
+	update information
+		change name / addr etc
+		add organization by code
+manager view
+	add
+		add car
+		add car type
+		add location
+		add organization
+	view
+		list of rentals
+		inv of cars and where they are
+
+
