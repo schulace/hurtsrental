@@ -1,5 +1,4 @@
 import java.sql.*;
-import java.sql.Date;
 import java.util.*;
 
 import static java.lang.System.exit;
@@ -133,11 +132,20 @@ public class CustomerView extends myView {
     void run() {
         options.put("reserve car", () -> reserveCar(this.conn));
         options.put("pickup car", () -> pickupCar(this.conn));
+        options.put("list rentals", () -> listRentals(this.conn));
         looper("customer");
     }
 
     private void reserveCar(Connection conn) {
-        try(PreparedStatement availableCars = conn.prepareStatement(Queries.AVAILABLE_CARS)){
+        try(PreparedStatement availableCars = conn.prepareStatement(Queries.AVAILABLE_CARS);
+        PreparedStatement rent = conn.prepareStatement(Queries.RENT);
+        PreparedStatement misc_charge = conn.prepareStatement(Queries.MISC_CHARGE);
+        PreparedStatement last_rental = conn.prepareStatement(Queries.LAST_RENTAL);
+        Statement orglist = conn.createStatement();
+        PreparedStatement orgAdd = conn.prepareStatement(Queries.ORG_DISCOUNT);
+        PreparedStatement orgCheck = conn.prepareStatement(Queries.ORG_CHECK);
+        ){
+            conn.setAutoCommit(false);
             //get pickup location
             confirmPrior("pickup location", () -> mainRunner.getLocation(conn, "where would you like to pick up the car from?"));
             int pickup_loc = (Integer) answers.get("pickup location");
@@ -170,25 +178,154 @@ public class CustomerView extends myView {
             availableCars.setDate(3, new java.sql.Date(pickup_date.getTime()));
             availableCars.setInt(4, pickup_loc);
             availableCars.setInt(5, pickup_loc);
-            availableCars.setDate(6, new java.sql.Date(pickup_date.getTime()));
+            availableCars.setDate(6, new java.sql.Date(dropoff_date.getTime()));
             availableCars.setDate(7, new java.sql.Date(pickup_date.getTime()));
             availableCars.setDate(8, new java.sql.Date(pickup_date.getTime()));
-            availableCars.setDate(9, new java.sql.Date(pickup_date.getTime()));
-            availableCars.setDate(10, new java.sql.Date(pickup_date.getTime()));
+            availableCars.setDate(9, new java.sql.Date(dropoff_date.getTime()));
+            availableCars.setDate(10, new java.sql.Date(dropoff_date.getTime()));
             availableCars.setInt(11, dropoff_loc);
 
             ResultSet set = availableCars.executeQuery();
+            System.out.println("you must select from a list of the following cars, or enter 0 to cancel the reservation");
             mainRunner.printSet(set);
+            ResultSet set2 = availableCars.executeQuery();
+            ArrayList<Integer> car_options = new ArrayList<>();
+            car_options.add(0);
+            while(set2.next()){
+                car_options.add(set2.getInt(1));
+            }
+            confirmPrior("car id", () -> mainRunner.getResponse("select from car_id above", car_options, 0, false));
+            int to_reserve = (int)answers.get("car id");
+            if(to_reserve == 0){
+                answers.clear();
+                System.out.println("rental aborted.");
+                return;
+            }
 
+            int ins_cost = -1;
+            while(ins_cost < 0) {
+                confirmPrior("insurance charge", () -> (int) mainRunner.getResponse("what is the daily insurance charge for the vehicle", null, 0, false));
+                ins_cost = (int)answers.get("insurance charge");
+            }
+
+            rent.setDate(1, new java.sql.Date(pickup_date.getTime()));
+            rent.setDate(2, new java.sql.Date(dropoff_date.getTime()));
+            rent.setInt(3, customer_id);
+            rent.setInt(4, to_reserve);
+            rent.setInt(5, ins_cost);
+            rent.setInt(6, pickup_loc);
+            rent.setInt(7, dropoff_loc);
+            //a trigger will also process here to ensure that the rental doesn't go back in time
+            rent.executeUpdate();
+            int rental_id;
+            ResultSet s = last_rental.executeQuery();
+            s.next();
+            rental_id = s.getInt(1);
+
+            while(true){
+                String res;
+                res = (String) mainRunner.getResponse("enter the name of a misc. charge, or 'done' when there are no more charges", null, "string", false);
+                if(res.equals("done")){
+                    break;
+                }
+                int oneTime = ((String) mainRunner.getResponse(
+                        "is this a one-time charge or daily charge?",
+                        new ArrayList<String>(){{add("one-time"); add("daily");}},
+                        "str",
+                        true
+                        )).equals("one-time") ? 1:0;
+                int cost = (int) mainRunner.getResponse("what is the dollar cost of this charge (put 0 if it's a percentage)", null, 0, false);
+                double perct = 10;
+                while(true) {
+                    perct = (double) mainRunner.getResponse("what is the % charge for this? (list as a decimal less than 1, or 0 if this charge doesn't have an associated percentage)", null, 0D, false);
+                    if(perct <= 1){
+                        break;
+                    }
+                    System.out.println("percentage was >1");
+                }
+                misc_charge.setInt(1, rental_id);
+                misc_charge.setString(2, res);
+                misc_charge.setInt(3, cost);
+                misc_charge.setInt(4, oneTime);
+                misc_charge.setDouble(5, perct);
+                misc_charge.executeUpdate();
+            }
+
+            ResultSet org_set = orglist.executeQuery(Queries.ORG_LIST);
+            ArrayList<String> orgarr = new ArrayList<>();
+            while(org_set.next()){
+                orgarr.add(org_set.getString(1));
+            }
+            orgarr.add("none");
+
+            while(true){
+                System.out.println("almost done! we just need you to input some promo codes if you have any");
+                String org = (String) mainRunner.getResponse("which organization do you belong to (enter 'none' to stop entering orgs)", orgarr, "str", true);
+                if(org.equals("none")){
+                    break;
+                }
+                String code = mainRunner.getRegexResponse("enter your promo code (up to 20 characters, no special symbols or spaces)", "^\\w{0,20}$");
+                orgCheck.setString(1, org);
+                orgCheck.setString(2, code);
+                ResultSet org_match = orgCheck.executeQuery();
+                if(!org_match.next()){
+                    System.out.println("invalid code :(");
+                    continue;
+                }
+                orgAdd.setInt(1, rental_id);
+                orgAdd.setString(2, org);
+                orgAdd.executeUpdate();
+            }
+            conn.commit();
+            conn.setAutoCommit(true);
         } catch (Exception e){
+            System.out.println("something went wrong (it's possible that the dates you entered are before the current date (set this in manager view))");
+            try {
+                conn.rollback();
+            } catch (SQLException e1) {
+                System.out.println("something failed, so we tried rolling back, but even that failed. I believe 'screwed' is a good way to describe the state of the DB if you get here");
+                e1.printStackTrace();
+            }
+            e.printStackTrace();
             reserveCar(conn);
             return;
         }
         answers.clear();
     }
 
-    private void pickupCar(Connection conn){
+    private void listRentals(Connection conn){
+        try(PreparedStatement st = conn.prepareStatement(Queries.LIST_CUSTOMER_RENTALS)){
+            st.setInt(1, customer_id);
+            ResultSet set = st.executeQuery();
+            mainRunner.printSet(set);
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
 
+    private void pickupCar(Connection conn){
+        try(PreparedStatement statement = conn.prepareStatement(Queries.LIST_CURRENT_CUSTOMER_RENTALS);
+            PreparedStatement update = conn.prepareStatement(Queries.CAR_PICKUP)){
+            statement.setInt(1, customer_id);
+            ResultSet set = statement.executeQuery();
+            if(!set.next()){
+                System.out.println("you don't have any current rentals to pick up");
+                return;
+            }
+            ArrayList<Integer> rentalIDs = new ArrayList<>();
+            do{
+                rentalIDs.add(set.getInt(1));
+            }while (set.next());
+
+            System.out.println("select which rental you'd like to pick up from the following list by ID");
+            listRentals(conn);
+            confirmPrior("to update id", () -> mainRunner.getResponse("select from above", rentalIDs, 0, false));
+            int id_to_update = (int) answers.get("to update id");
+            update.setInt(1, id_to_update);
+            update.executeUpdate();
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
     }
 
 }
