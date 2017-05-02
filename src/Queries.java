@@ -1,10 +1,15 @@
+import org.intellij.lang.annotations.Language;
+
 /**
  * Created by schulace on 4/18/17.
  */
+@SuppressWarnings("DefaultFileTemplate")
 public class Queries {
+    @Language("Oracle")
     public static final String MANAGER_INV_VIEW =
         "select PLATE_NUMBER, make, MODEL, YEAR, STREET_ADDR, CITY, LOCATION.state from car natural join at  NATURAL join VEHI_TYPE left OUTER JOIN LOCATION on AT.LOC_ID = LOCATION.LOC_ID";
         //TODO fix above to include cars out for rental
+        @Language("Oracle")
     public static final String AVAILABLE_CARS =
             "select car_id, make, model, year, RATE, type from car natural join\n" +
             "(\n" +
@@ -58,25 +63,65 @@ public class Queries {
             "    )\n" +
             ") NATURAL join VEHI_TYPE order by rate, MODEL, make, year";
 
+    @Language("Oracle")
     public static final String CITY_LIST = "select distinct city from location order by city";
+    @Language("Oracle")
     public static final String CITY_FILTER = "select loc_id, street_addr, city, state, zip from location where LOWER(city) = LOWER(?)";
+    @Language("Oracle")
     public static final String RENT = "insert into rental(start_date, end_date, cust_id, car_id, insurance_charge, pickup_loc, pickup_occ, dropoff_loc, dropoff_occ, start_fuel, end_fuel) values (?,?,?,?,?,?,0,?,0,1,NULL)";
+    @Language("Oracle")
     public static final String MISC_CHARGE = "insert into MISC_CHARGE values(?,?,?,?,?)";
+    @Language("Oracle")
     public static final String LAST_RENTAL = "select max(id) from rental";
+    @Language("Oracle")
     public static final String ORG_LIST = "select org_name from organization";
+    @Language("Oracle")
     public static final String ORG_DISCOUNT = "insert into org_discounts values(?,?)";
+    @Language("Oracle")
     public static final String ORG_CHECK = "select * from organization where LOWER(org_name) = LOWER(?) and code = ?";
 
+    @Language("Oracle")
     public static final String RANDOM_CUSTOMER = "select cust_id from (select cust_id from customer order by dbms_random.value()) where rownum = 1";
+    @Language("Oracle")
     public static final String CUSTOMER_LOGIN_CHECK = "select cust_id, last_name from customer where cust_id = ? " +
             "and LOWER(last_name) = LOWER(?)";
 
+    @Language("Oracle")
     public static final String CUSTOMER_ADD_APPT = "insert into CUSTOMER(FIRST_NAME, LAST_NAME, STREET_ADDR, CITY, STATE, LICENSE_NUMBER, LICENSE_ST, ZIP, APPT_NUMBER) values(?,?,?,?,?,?,?,?,?)";
+    @Language("Oracle")
     public static final String CUSTOMER_ADD = "insert into CUSTOMER(FIRST_NAME, LAST_NAME, STREET_ADDR, CITY, STATE, LICENSE_NUMBER, LICENSE_ST, ZIP) values(?,?,?,?,?,?,?,?)";
 
+    @Language("Oracle")
     public static final String MOST_RECENT_CUST = "select CUST_ID from CUSTOMER where CUST_ID = (select max(CUST_ID) from customer)";
 
+    @Language("Oracle")
     public static final String LIST_CUSTOMER_RENTALS = "select * from rental where cust_id = ?";
-    public static final String LIST_CURRENT_CUSTOMER_RENTALS = "select * from rental where cust_id = ? and end_date >= (select c_d from my_time) and pickup_occ = 0";
+    @Language("Oracle")
+    public static final String LIST_AVAILABLE_PICKUPS = "select * from rental where cust_id = ? and START_DATE <= (select c_d from my_time) and END_DATE >= (SELECT c_d from MY_TIME) and pickup_occ = 0";
+    @Language("Oracle")
+    public static final String LIST_ACTIVE_RENTALS = "select * from rental where cust_id = ? and dropoff_occ = 0 and PICKUP_OCC = 1";
+    @Language("Oracle")
     public static final String CAR_PICKUP = "update rental set pickup_occ = 1 where id = ?";
+    @Language("Oracle")
+    public static final String CAR_DROPOFF = "update rental set dropoff_occ = 1 where id = ?";
+
+    @Language("Oracle")
+    public static final String SET_DATE = "update my_time set c_d = ?";
+    @Language("Oracle")
+    public static final String AUTO_PICK_UP = "update rental set pickup_occ = 1 where start_date <= (select C_D from my_time) and PICKUP_OCC = 0";
+    @Language("Oracle")
+    public static final String AUTO_DROP_OFF = "update rental set dropoff_occ = 1 where end_date <= (select C_D from my_time) and DROPOFF_OCC = 0";
+    @Language("Oracle")
+    public static final String GET_DATE = "select c_d curr_date from my_time";
+
+    @Language("Oracle")
+    public static final String COST_CALCULATION = "select rental_cost(?) from dual";
+    @Language("Oracle")
+    public static final String DROPOFF_FIX = "update rental set END_DATE = case when (select c_d from my_time) > END_DATE then (select c_d from MY_TIME) else END_DATE END where id = ?";
+
+    @Language("Oracle")
+    public static final String CUSTOMER_INFO_UPDATE = "update customer set FIRST_NAME = ?, LICENSE_NUMBER = ?, LICENSE_ST = ?, LAST_NAME = ?, STREET_ADDR = ?, APPT_NUMBER = ?, CITY = ?, STATE = ?, ZIP = ? where cust_id = ?";
+    @Language("Oracle")
+    public static final String GET_CUSTOMER = "select * from customer where CUST_ID = ?";
+
 }

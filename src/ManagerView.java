@@ -24,6 +24,7 @@ public class ManagerView extends myView {
 
 
 
+
     private void showInv(Connection conn){
         try (Statement s = getStatement(conn)){
             ResultSet set = s.executeQuery(Queries.MANAGER_INV_VIEW);

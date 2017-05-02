@@ -13,6 +13,7 @@ public class testing {
             System.err.println("could not find required libraries");
             exit(1);
         }
+        test2(mainRunner.login());
         System.out.println("hello tehre");
     }
 

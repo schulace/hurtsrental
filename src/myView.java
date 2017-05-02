@@ -1,6 +1,5 @@
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
@@ -19,6 +18,8 @@ public abstract class myView {
         this.conn = conn;
         this.options = new HashMap<String, Runnable>();
         options.put("exit", () -> leave = true);
+        options.put("set date", () -> set_date());
+        options.put("get date", () -> get_date());
         this.answers = new HashMap<String, Object>();
     }
 
@@ -55,6 +56,34 @@ public abstract class myView {
 
     }
 
+    public void set_date(){
+        try(PreparedStatement stmnt = conn.prepareStatement(Queries.SET_DATE);
+            PreparedStatement pickup = conn.prepareStatement(Queries.AUTO_PICK_UP);
+            PreparedStatement dropoff = conn.prepareStatement(Queries.AUTO_DROP_OFF)){
+            java.sql.Date d = new java.sql.Date((mainRunner.getDateResponse()).getTime());
+            stmnt.setDate(1, d);
+            stmnt.executeUpdate();
+            if((Boolean)mainRunner.getResponse("enter 'true' to auto-update rental dropoff and pickup, 'false' otherwise", new ArrayList<Boolean>(){{add(true); add(false);}}, false, true)){
+                pickup.executeUpdate();
+                dropoff.executeUpdate();
+                
+            }
+
+        } catch (SQLException e){
+            System.out.println("ahhh. you're trying to go back in time. not allowed!");
+            e.printStackTrace();
+        }
+    }
+
+    public void get_date(){
+        try(Statement s = conn.createStatement()){
+            ResultSet set = s.executeQuery(Queries.GET_DATE);
+            mainRunner.printSet(set);
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
+
     /**
      *
      * this method tries to use some new java 8 features of callables. basically, the
@@ -65,7 +94,7 @@ public abstract class myView {
      * @param option which option to set
      * @param r the callable to execute
      */
-    public void confirmPrior(String option, Callable<Object> r){
+    public Object confirmPrior(String option, Callable<Object> r){
         Object s = answers.get(option);
         if(s != null) {
             String res = (String) mainRunner.getResponse(
@@ -78,14 +107,17 @@ public abstract class myView {
                     false
             );
             if (res.equals("y")) {
-                return;
+                return s;
             }
         }
         try {
-            answers.put(option, r.call());
+            Object retval = r.call();
+            answers.put(option, retval);
+            return retval;
         }
         catch(Exception e){
             System.err.println("java needs better functional methods");
+            return null;
         }
     }
 }

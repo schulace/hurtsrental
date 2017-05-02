@@ -34,7 +34,7 @@ public class mainRunner {
         //scan = new Scanner(System.in);
         try (Connection connection = login()) {
             String res = (String)getResponse("type 'manager' or 'customer' to begin",
-                Arrays.asList("manager", "customer"), "str", false);
+                Arrays.asList("manager", "customer", "generator"), "str", false);
             switch(res){
                 case "manager":
                     ManagerView manView = new ManagerView(connection);
@@ -44,6 +44,8 @@ public class mainRunner {
                     CustomerView custView = new CustomerView(connection);
                     custView.run();
                     break;
+                case "generator":
+                    rentalGenerator.run(connection);
             }
         }
         scan.close();
@@ -76,7 +78,15 @@ public class mainRunner {
             }
             retval = scan.nextDouble();
             scan.nextLine();
-        } else {
+        } else if (sample instanceof Boolean){
+            while(!scan.hasNextBoolean()){
+                System.out.println(prompt);
+                scan.nextLine();
+            }
+            retval = scan.nextBoolean();
+            scan.nextLine();
+        }
+        else {
             System.err.println("what the fuck");
             exit(2);
         }
