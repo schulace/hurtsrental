@@ -59,29 +59,29 @@ create table rental(
     pickup_occ numeric(1,0),
     dropoff_loc numeric(12,0),
     dropoff_occ numeric(1,0),
-    start_fuel numeric(4,3),
+    start_fuel numeric(5,3),
     end_fuel numeric(4,3),
     foreign key (car_id) references car on delete set null,
     foreign key (cust_id) references customer,
     foreign key (pickup_loc) references location,
     foreign key (dropoff_loc) references location
 );
-\
+
 create table misc_charge(
     id numeric(12,0),
     charge_name varchar(20),
-    cost numeric(12,0),
+    cost numeric(6,2),
     onetime numeric(1,0), --boolean for whether to apply the fee once or on a daily basis
     primary key (id, charge_name),
-    percentage numeric(3,3), --whether or not to tack on a percentage charge
+    percentage numeric(4,3), --whether or not to tack on a percentage charge
     foreign key (id) references rental on delete cascade
 );
 
 create table sample_misc_charges(
     name varchar(20),
-    cost numeric(5,2),
+    cost numeric(6,2),
     onetime numeric(1,0), --boolean for whether to apply the fee once or on a daily basis
-    percentage numeric(3,3), --whether or not to tack on a percentage charge
+    percentage numeric(4,3), --whether or not to tack on a percentage charge
     primary key (name)
 );
 
@@ -192,3 +192,4 @@ alter table car add constraint car_plate_unique unique (plate_number, state);
 alter table location add constraint location_unique_addr unique (street_addr, city, state, zip);
 alter table customer add constraint cust_unique_license unique (license_st, license_number);
 alter table organization add constraint org_unique_code unique (code);
+alter table rental add constraint e_f_lt_s_f check(end_fuel <= start_fuel or end_fuel is null);

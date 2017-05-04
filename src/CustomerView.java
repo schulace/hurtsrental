@@ -1,5 +1,5 @@
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
 
 import static java.lang.System.exit;
 
@@ -62,37 +62,38 @@ public class CustomerView extends myView {
                         }
                         System.out.println("incorrect login, try again");
                     } catch (SQLException e) {
-                        e.printStackTrace(); //TODO handle
+                        System.out.println("an error occurred handling your request. trying again");
+                        customer_login();
+                        return;
                     }
                 }
                 break;
             case "create":
-                //TODO make these save answers
-                String fName = mainRunner.getRegexResponse(
+                String fName = (String) confirmPrior("first name", () -> mainRunner.getRegexResponse(
                         "what is your first name (up to 20 characters, no punctuation or spaces)",
-                        "^[[a-zA-Z]]{1,20}$");
-                String lNumber = mainRunner.getRegexResponse(
+                        "^[[a-zA-Z]]{1,20}$"));
+                String lNumber = (String) confirmPrior("license number", () -> mainRunner.getRegexResponse(
                         "enter your 9-digit license ID (may contain letters)",
-                        "^.{9}$");
-                String lState = mainRunner.getRegexResponse("what state is on your license? (enter an invalid state and you'll need to enter all of the above again)",
-                        "^[a-zA-Z]{2}").toUpperCase();
-                String lname = mainRunner.getRegexResponse(
+                        "^.{9}$"));
+                String lState = (String) confirmPrior("license state", () -> mainRunner.getRegexResponse("what state is on your license? (enter an invalid state and you'll need to enter all of the above again)",
+                        "^[a-zA-Z]{2}").toUpperCase());
+                String lname = (String) confirmPrior("last name", () -> mainRunner.getRegexResponse(
                         "what is your last name (up to 20 characters, no punctuation or spaces)",
-                        "^[[a-zA-Z]]{1,20}$");
-                String street_addr = mainRunner.getRegexResponse(
+                        "^[[a-zA-Z]]{1,20}$"));
+                String street_addr = (String) confirmPrior("street address", () -> mainRunner.getRegexResponse(
                         "enter your street address (no city / state / zip) no punctuation",
-                        "^[[a-zA-Z]|\\s|\\d]{1,20}$");
-                String appt_number = mainRunner.getRegexResponse(
+                        "^[[a-zA-Z]|\\s|\\d]{1,20}$"));
+                String appt_number = (String) confirmPrior("appt_number", () -> mainRunner.getRegexResponse(
                         "appartment number (just press <enter> if you don't have one)",
-                        "^\\d{0,7}$");
-                String city = mainRunner.getRegexResponse(
+                        "^\\d{0,7}$"));
+                String city = (String) confirmPrior("city", ()-> mainRunner.getRegexResponse(
                         "name of your city up to 25 characters, spaces are allowed",
-                        "^[[a-zA-Z]|\\s]{1,25}$");
-                String state = mainRunner.getRegexResponse("what state do you live in? (enter an invalid state and you'll need to enter all of the above again)",
-                        "^[a-zA-Z]{2}").toUpperCase();
-                int zip = Integer.parseInt(mainRunner.getRegexResponse(
+                        "^[[a-zA-Z]|\\s]{1,25}$"));
+                String state = (String) confirmPrior("state", () ->mainRunner.getRegexResponse("what state do you live in? (enter an invalid state and you'll need to enter all of the above again)",
+                        "^[a-zA-Z]{2}").toUpperCase());
+                int zip = (Integer) confirmPrior("zip", () -> Integer.parseInt(mainRunner.getRegexResponse(
                         "What is your 5-digit zip code?",
-                        "^\\d{5}"));
+                        "^\\d{5}")));
                 try (PreparedStatement stmnt = conn.prepareStatement(appt_number.equals("") ? Queries.CUSTOMER_ADD : Queries.CUSTOMER_ADD_APPT)) {
                     stmnt.setString(1, fName);
                     stmnt.setString(2, lname);
@@ -141,6 +142,7 @@ public class CustomerView extends myView {
         options.put("list rentals", () -> listRentals());
         options.put("drop off car", () -> dropoffCar());
         options.put("update info", () -> updateInfo());
+        options.put("add organization", () -> addOrg());
         looper("customer");
     }
 
@@ -309,10 +311,23 @@ public class CustomerView extends myView {
     }
 
     public void listRentals() {
-        try (PreparedStatement st = conn.prepareStatement(Queries.LIST_CUSTOMER_RENTALS)) {
+        try (PreparedStatement st = conn.prepareStatement(Queries.LIST_COMPLETED_RENTALS);
+             PreparedStatement current = conn.prepareStatement(Queries.LIST_ACTIVE_RENTALS);
+             PreparedStatement future = conn.prepareStatement(Queries.LIST_FUTURE_RENTALS);) {
             st.setInt(1, customer_id);
+            current.setInt(1, customer_id);
+            future.setInt(1, customer_id);
             ResultSet set = st.executeQuery();
+            System.out.println("completed rentals");
             mainRunner.printSet(set);
+            System.out.println("----------------------------------------------");
+            System.out.println("rentals in progress");
+            ResultSet set2 = current.executeQuery();
+            mainRunner.printSet(set2);
+            System.out.println("----------------------------------------------");
+            System.out.println("future (planned) rentals");
+            ResultSet set3 = future.executeQuery();
+            mainRunner.printSet(set3);
         } catch (SQLException e) {
             System.out.println("couldn't connect to server :(");
         }
@@ -320,8 +335,32 @@ public class CustomerView extends myView {
 
     public void pickupCar() {
         try (PreparedStatement statement = conn.prepareStatement(Queries.LIST_AVAILABLE_PICKUPS);
+             PreparedStatement unavail = conn.prepareStatement(Queries.LIST_WOULD_BE_PICKUPS);
+             PreparedStatement rentalDelete = conn.prepareStatement(Queries.DELETE_RENTAL);
              PreparedStatement update = conn.prepareStatement(Queries.CAR_PICKUP)) {
             conn.setAutoCommit(false);
+
+            unavail.setInt(1, customer_id);
+            unavail.setInt(2, customer_id);
+
+            ResultSet noPick2 = unavail.executeQuery();
+            ArrayList<Integer>toDelete = new ArrayList<Integer>();
+            while(noPick2.next()){
+                toDelete.add(noPick2.getInt(1));
+            }
+            if(toDelete.size() >= 0){
+                ResultSet noPick = unavail.executeQuery();
+                System.out.println("the following reservations are unavailable due to a car not being returned and will be canceled.");
+                mainRunner.printSet(noPick);
+                System.out.println("feel free to reserve another car! we appologize for the inconvenience");
+                for(int x:toDelete){
+                    rentalDelete.setInt(1, x);
+                    rentalDelete.executeUpdate();
+                }
+                return;
+            }
+
+
             statement.setInt(1, customer_id);
             ResultSet set = statement.executeQuery();
             if (!set.next()) {
@@ -332,17 +371,21 @@ public class CustomerView extends myView {
             do {
                 rentalIDs.add(set.getInt(1));
             } while (set.next());
+            rentalIDs.add(0);
 
-            System.out.println("select which rental you'd like to pick up from the following list by ID");
+            System.out.println("select which rental you'd like to pick up from the following list by ID, or 0 to cancel");
             ResultSet available_pups = statement.executeQuery();
             mainRunner.printSet(available_pups);
             confirmPrior("to update id", () -> mainRunner.getResponse("select from above", rentalIDs, 0, false));
             int id_to_update = (int) answers.get("to update id");
+            if(id_to_update == 0){
+                System.out.println("aborting");
+                return;
+            }
             update.setInt(1, id_to_update);
             update.executeUpdate();
             answers.clear();
             conn.commit();
-            conn.setAutoCommit(true);
         } catch (SQLException e) {
             try {
                 conn.rollback();
@@ -350,6 +393,13 @@ public class CustomerView extends myView {
                 System.out.println("database failed, couldn't rollback transaction.");
             }
             e.printStackTrace();
+        }
+        finally {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException e) {
+                System.out.println("thanks Oracle.  random crap happened when trying to make database auto-commit again");
+            }
         }
     }
 
@@ -376,8 +426,15 @@ public class CustomerView extends myView {
             confirmPrior("to update id", () -> mainRunner.getResponse("select from above", rentalIDs, 0, false));
             int id_to_update = (int) answers.get("to update id");
             final_cost.setInt(1, id_to_update);
+            double fuel_ppg = 0;
+            while(fuel_ppg <= 0) {
+                fuel_ppg = (Double) confirmPrior("fuel price", () -> mainRunner.getResponse("what's the current price of fuel (per gallon)?", null, 0.3D, false));
+            }
+            final_cost.setDouble(2, fuel_ppg);
             ResultSet set1 = final_cost.executeQuery();
-            update.setInt(1, id_to_update);
+            double endFuel = (Double) confirmPrior("end fuel", () -> mainRunner.getResponse("how much fuel is left on return (gallons)", null, 0.3D, false));
+            update.setInt(2, id_to_update);
+            update.executeUpdate(); //could throw integrity violation in the event that we end fuel > start.
             if (!set1.next()) {
                 System.out.println("shiitttttt. this shouldn't happen. aborting");
                 conn.rollback();
@@ -389,13 +446,21 @@ public class CustomerView extends myView {
             update.executeUpdate();
             conn.commit();
             answers.clear();
-            conn.setAutoCommit(true);
+        } catch (SQLIntegrityConstraintViolationException ex){
+            System.out.println("end fuel can't be more than start fuel (your inputs are saved, you can try this method again)");
+            return;
         } catch (SQLException e) {
             try {
                 System.out.println("something went wrong. aborting transaction");
                 conn.rollback();
             } catch (SQLException e1) {
                 System.out.println("db write failed, and so did rollback. thanks oracle");
+            }
+        } finally {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -489,7 +554,51 @@ public class CustomerView extends myView {
     }
 
     public void addOrg() {
-
+        try(PreparedStatement addOrg = conn.prepareStatement(Queries.CUSTOMER_BE_MEMBER);
+            PreparedStatement isValidOrg = conn.prepareStatement(Queries.ORG_CHECK)){
+            conn.setAutoCommit(false);
+            String orgName = (String) confirmPrior("organization name",
+                    () -> mainRunner.getResponse("what's the name of your oganization?", null, "str", false));
+            String orgCode = (String) confirmPrior("code",
+                    ()-> mainRunner.getResponse("what's the code associated?", null, "str", false));
+            isValidOrg.setString(1, orgName);
+            isValidOrg.setString(2, orgCode);
+            ResultSet valid = isValidOrg.executeQuery();
+            if(!valid.next()){
+                System.out.println("there exists no matching organization and code combination.");
+                String res = (String) mainRunner.getResponse("enter continue to try again, or exit to stop", new ArrayList<String>()
+                {{
+                    add("continue");
+                    add("stop");
+                }}, "str", false);
+                switch (res){
+                    case "continue":
+                        addOrg();
+                        return;
+                    case "stop":
+                        return;
+                }
+            }
+            addOrg.setInt(1, customer_id);
+            addOrg.setString(2, orgName);
+            addOrg.executeUpdate();
+            conn.commit();
+            answers.clear();
+            System.out.println("successfully added organization");
+        } catch (SQLException e){
+            try {
+                conn.rollback();
+            } catch (SQLException e1) {
+                System.out.println("tried rolling back from a failed transaction, and that failed too");
+            }
+            System.out.println("error contacting database");
+        }
+        finally {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException e) {
+                System.out.println("error contacting database");
+            }
+        }
     }
-
 }

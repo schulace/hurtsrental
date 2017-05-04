@@ -1,15 +1,13 @@
 import org.intellij.lang.annotations.Language;
 
 /**
- * Created by schulace on 4/18/17.
+ * Created by alex on 4/18/17.
  */
-@SuppressWarnings("DefaultFileTemplate")
 public class Queries {
     @Language("Oracle")
-    public static final String MANAGER_INV_VIEW =
-        "select PLATE_NUMBER, make, MODEL, YEAR, STREET_ADDR, CITY, LOCATION.state from car natural join at  NATURAL join VEHI_TYPE left OUTER JOIN LOCATION on AT.LOC_ID = LOCATION.LOC_ID";
-        //TODO fix above to include cars out for rental
-        @Language("Oracle")
+    public static final String MANAGER_INV_VIEW = "select car_id, plate_number, car.state, make, model, year, location.street_addr, location.state, location.zip from rental full outer join at using (car_id) inner join car using(car_id) inner join vehi_type using(type_id) left outer join location on at.loc_id = location.loc_id order by zip";
+
+    @Language("Oracle")
     public static final String AVAILABLE_CARS =
             "select car_id, make, model, year, RATE, type from car natural join\n" +
             "(\n" +
@@ -95,27 +93,52 @@ public class Queries {
     public static final String MOST_RECENT_CUST = "select CUST_ID from CUSTOMER where CUST_ID = (select max(CUST_ID) from customer)";
 
     @Language("Oracle")
-    public static final String LIST_CUSTOMER_RENTALS = "select * from rental where cust_id = ?";
+    public static final String LIST_COMPLETED_RENTALS = "select id, START_DATE, END_DATE, START_FUEL, END_FUEL, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where cust_id = ? and DROPOFF_OCC = 1";
     @Language("Oracle")
-    public static final String LIST_AVAILABLE_PICKUPS = "select * from rental where cust_id = ? and START_DATE <= (select c_d from my_time) and END_DATE >= (SELECT c_d from MY_TIME) and pickup_occ = 0";
+    public static final String LIST_FUTURE_RENTALS = "select id, START_DATE, END_DATE, START_FUEL, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where cust_id = ? and DROPOFF_OCC = 0 and PICKUP_OCC = 0";
     @Language("Oracle")
-    public static final String LIST_ACTIVE_RENTALS = "select * from rental where cust_id = ? and dropoff_occ = 0 and PICKUP_OCC = 1";
+    public static final String LIST_AVAILABLE_PICKUPS = "select id, START_DATE, END_DATE, START_FUEL, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where cust_id = ? and START_DATE <= (select c_d from my_time) and END_DATE >= (SELECT c_d from MY_TIME) and pickup_occ = 0 and car_id in (select CAR_ID from AT)";
+    @Language("Oracle")
+    public static final String LIST_WOULD_BE_PICKUPS = "select id, START_DATE, END_DATE, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where cust_id = ? and START_DATE <= (select c_d from my_time) and END_DATE >= (SELECT c_d from MY_TIME) and pickup_occ = 0 MINUS " +
+            "select * from rental where cust_id = ? and START_DATE <= (select c_d from my_time) and END_DATE >= (SELECT c_d from MY_TIME) and pickup_occ = 0 and (CAR_ID,DROPOFF_LOC) in (select CAR_ID, loc_id from at)";
+
+    @Language("Oracle")
+    public static final String LIST_ALL_RENTALS_PAST = "select id, START_DATE, END_DATE, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where DROPOFF_OCC = 1";
+
+    @Language("Oracle")
+    public static final String LIST_ALL_RENTALS_CURRENT = "select id, START_DATE, END_DATE, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where DROPOFF_OCC = 0 and PICKUP_OCC = 1";
+
+    @Language("Oracle")
+    public static final String LIST_ALL_RENTALS_RESERVED = "select id, START_DATE, END_DATE, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where PICKUP_OCC = 0";
+    @Language("Oracle")
+    public static final String DELETE_RENTAL = "delete from rental where id = ?";
+
+    @Language("Oracle")
+    public static final String LIST_ACTIVE_RENTALS = "select id, START_DATE, END_DATE, l1.city as pickup_city, l2.city as dropoff_city from rental inner join LOCATION l1 on l1.LOC_ID = PICKUP_LOC inner join LOCATION l2 on l2.LOC_ID = DROPOFF_LOC where cust_id = ? and dropoff_occ = 0 and PICKUP_OCC = 1";
     @Language("Oracle")
     public static final String CAR_PICKUP = "update rental set pickup_occ = 1 where id = ?";
     @Language("Oracle")
-    public static final String CAR_DROPOFF = "update rental set dropoff_occ = 1 where id = ?";
+    public static final String CAR_DROPOFF = "update rental set dropoff_occ = 1, END_FUEL = ? where id = ?";
 
     @Language("Oracle")
     public static final String SET_DATE = "update my_time set c_d = ?";
     @Language("Oracle")
     public static final String AUTO_PICK_UP = "update rental set pickup_occ = 1 where start_date <= (select C_D from my_time) and PICKUP_OCC = 0";
     @Language("Oracle")
-    public static final String AUTO_DROP_OFF = "update rental set dropoff_occ = 1 where end_date <= (select C_D from my_time) and DROPOFF_OCC = 0";
+    public static final String AUTO_DROP_OFF_1 = "update rental set dropoff_occ = 1 where end_date <= (select C_D from my_time) and DROPOFF_OCC = 0";
+
+    @Language("Oracle")
+    public static final String AUTO_DROP_OFF_2 ="INSERT INTO at(\n" +
+            "SELECT t1.car_id, rental.dropoff_loc FROM \n" +
+            "(\n" +
+            "  SELECT car_id, max(end_date) max_d FROM rental GROUP BY car_id\n" +
+            ") t1 INNER JOIN rental ON rental.car_id = t1.car_id AND rental.end_date = t1.max_d\n" +
+            "WHERE rental.dropoff_occ = 1)";
     @Language("Oracle")
     public static final String GET_DATE = "select c_d curr_date from my_time";
 
     @Language("Oracle")
-    public static final String COST_CALCULATION = "select rental_cost(?) from dual";
+    public static final String COST_CALCULATION = "select rental_cost(?, ?) from dual";
     @Language("Oracle")
     public static final String DROPOFF_FIX = "update rental set END_DATE = case when (select c_d from my_time) > END_DATE then (select c_d from MY_TIME) else END_DATE END where id = ?";
 
@@ -124,4 +147,18 @@ public class Queries {
     @Language("Oracle")
     public static final String GET_CUSTOMER = "select * from customer where CUST_ID = ?";
 
+    @Language("Oracle")
+    public static final String CUSTOMER_BE_MEMBER = "insert into MEMBER_OF values (?,?)";
+
+    @Language("Oracle")
+    public static final String CREATE_CAR_TYPE = "insert into VEHI_TYPE(make, model, type, rate, year) VALUES (?,?,?,?,?)";
+
+    @Language("Oracle")
+    public static final String GET_VEHI_TYPES = "select * from VEHI_TYPE where LOWER(make) like LOWER(?) and LOWER(MODEL) like LOWER(?) and LOWER(TYPE) like LOWER(?) and (YEAR = ? or ? = 0)";
+
+    @Language("Oracle")
+    public static final String CAR_ADD = "INSERT into car(state, plate_number, TYPE_ID) VALUES (?,?,?)";
+
+    @Language("Oracle")
+    public static final String REVENUE = "SELECT sum(rental_cost(id, ?)) revenue$ FROM rental WHERE dropoff_occ = 1 AND end_date >= ? AND end_date <= ?";
 }

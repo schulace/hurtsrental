@@ -15,15 +15,17 @@ public class rentalGenerator {
     public static void run(Connection connection) {
         try(Statement st1 = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ){
-            ResultSet set = st1.executeQuery("select cust_id from customer sample(3)");
+            ResultSet set = st1.executeQuery("select cust_id from customer sample(5)");
             ArrayList<Integer> temp = new ArrayList<>();
             System.out.println("about to insert into arrlist");
             while(set.next()){
                 temp.add(set.getInt(1));
             }
             Random r = new Random();
+            connection.setAutoCommit(false);
             for(Integer cust_id:temp)
             {
+                //this only half works. the actual interface does it fine though.
                 try(PreparedStatement stmnt = connection.prepareStatement(Queries.AVAILABLE_CARS, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
                     PreparedStatement insert = connection.prepareStatement(Queries.RENT)) {
                         LocalDate start = LocalDate.of(2001, r.nextInt(10) + 1, r.nextInt(27) + 1);
@@ -63,9 +65,11 @@ public class rentalGenerator {
 
                         insert.executeUpdate();
                         System.out.println("updated 'yay'?");
+                        connection.commit();
                     }
-                    //TODO left off here, generate some more DATA with your start and end date which are now sequential
             }
+            connection.commit();
+            connection.setAutoCommit(true);
         } catch (SQLException e){
             e.printStackTrace();
         }

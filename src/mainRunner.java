@@ -185,7 +185,7 @@ public class mainRunner {
      */
     public static Connection login() throws SQLException{
         return DriverManager.getConnection("jdbc:oracle:thin:@edgar0.cse.lehigh.edu:1521:cse241",
-                "ajs520", "WhiteSnow1");
+                "ajs500", "WhiteSnow1");
 //        System.out.print("Please enter your userName:");
 //        String name = scan.nextLine();
 //        System.out.print("Please enter your password:");

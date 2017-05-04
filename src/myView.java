@@ -59,19 +59,38 @@ public abstract class myView {
     public void set_date(){
         try(PreparedStatement stmnt = conn.prepareStatement(Queries.SET_DATE);
             PreparedStatement pickup = conn.prepareStatement(Queries.AUTO_PICK_UP);
-            PreparedStatement dropoff = conn.prepareStatement(Queries.AUTO_DROP_OFF)){
+            PreparedStatement dropoff = conn.prepareStatement(Queries.AUTO_DROP_OFF_1);
+            PreparedStatement dropoff_2 = conn.prepareStatement(Queries.AUTO_DROP_OFF_2);
+            PreparedStatement disableT = conn.prepareStatement("alter TRIGGER DROPOFF DISABLE");
+            ){
+            conn.setAutoCommit(false);
             java.sql.Date d = new java.sql.Date((mainRunner.getDateResponse()).getTime());
             stmnt.setDate(1, d);
             stmnt.executeUpdate();
+            disableT.execute(); //disabling trigger so I can leave data inconsistent for a little bit
             if((Boolean)mainRunner.getResponse("enter 'true' to auto-update rental dropoff and pickup, 'false' otherwise", new ArrayList<Boolean>(){{add(true); add(false);}}, false, true)){
                 pickup.executeUpdate();
                 dropoff.executeUpdate();
-                
+                dropoff_2.executeUpdate();
+                conn.commit();
             }
 
         } catch (SQLException e){
             System.out.println("ahhh. you're trying to go back in time. not allowed!");
-            e.printStackTrace();
+            //e.printStackTrace();
+            try {
+                conn.rollback();
+            } catch (SQLException e1) {
+                e1.printStackTrace();
+            }
+        } finally {
+            try(PreparedStatement enableT = conn.prepareStatement("alter trigger DROPOFF ENABLE ")) {
+                enableT.execute(); //returning consistency no matter what happens
+                conn.commit();
+                conn.setAutoCommit(true);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
