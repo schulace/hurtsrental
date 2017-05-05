@@ -108,74 +108,90 @@ BEGIN
 END REMOVEDATA;
 /
 
-CREATE OR REPLACE FUNCTION RENTAL_COST
-(
-  RENTAL_ID IN NUMBER
-) RETURN NUMBER AS
-s_d Date;
-e_d Date;
-r_len number;
-ins_c number;
-total_cost number;
-rate number;
-calc_multiplier number;
+create or replace FUNCTION RENTAL_COST
+  (
+    RENTAL_ID IN NUMBER
+  ) RETURN NUMBER AS
+  s_d Date;
+  e_d Date;
+  r_len number;
+  ins_c number;
+  total_cost number;
+  rate number;
+  calc_multiplier number;
 
---charges variables
-pct number;
-charge_cost number;
-onetime number;
---discount percentages variables
-disct number;
+  --charges variables
+  pct number;
+  charge_cost number;
+  onetime number;
+  --discount percentages variables
+  disct number;
 
-cursor charges is
-  select percentage, cost, onetime
-  from misc_charge
-  where id = rental_id;
+  e_fuel number;
+  s_fuel number;
 
-cursor discounts is
-  select discount
-  from organization natural join org_discounts
-  where id =org_discounts.id;
+  cursor charges is
+    select percentage, cost, onetime
+    from misc_charge
+    where id = rental_id;
 
-BEGIN
+  cursor discounts is
+    select discount
+    from organization natural join org_discounts
+    where RENTAL_ID =org_discounts.id;
 
-  select start_date, end_date, insurance_charge, rate into s_d, e_d, ins_c, rate
-  from rental natural join car natural join vehi_type where rental.id = rental_id;
+  cursor cust_disct is
+    select discount
+    from organization natural join member_of natural join rental
+    where rental.id = RENTAL_ID;
 
-  r_len := e_d - s_d;
+  BEGIN
 
-  total_cost := r_len * (rate + ins_c);
+    select start_date, end_date, insurance_charge, rate, end_fuel into s_d, e_d, ins_c, rate, e_fuel
+    from rental natural join car natural join vehi_type where rental.id = rental_id;
 
-  open charges;
+    select fuel_capacity into s_fuel
+    from rental natural join car natural join vehi_type where rental.id = rental_id;
 
-  while charges%FOUND
-  loop
-    fetch charges into pct, charge_cost, onetime;
-    if onetime = 1
+    r_len := e_d - s_d;
+
+    total_cost := r_len * (rate + ins_c);
+
+    open charges;
+
+    while charges%FOUND
+    loop
+      fetch charges into pct, charge_cost, onetime;
+      if onetime = 1
+      then
+        total_cost := total_cost + pct * rate;
+        total_cost := total_cost + charge_cost;
+      else
+        total_cost := total_cost + pct * rate * r_len;
+        total_cost := total_cost + charge_cost * r_len;
+      end if;
+    end loop;
+
+    calc_multiplier := 1;
+    open discounts;
+    while discounts%FOUND
+    loop
+      fetch discounts into disct;
+      calc_multiplier := calc_multiplier - disct;
+    end loop;
+
+    open cust_disct;
+    while cust_disct%found
+    loop
+      fetch cust_disct into disct;
+      calc_multiplier := calc_multiplier - disct;
+    end loop;
+
+    if calc_multiplier < 0
     then
-      total_cost := total_cost + pct * rate;
-      total_cost := total_cost + charge_cost;
-    else
-      total_cost := total_cost + pct * rate * r_len;
-      total_cost := total_cost + charge_cost * r_len;
+      calc_multiplier := 0;
     end if;
-  end loop;
 
-  calc_multiplier := 1;
-  open discounts;
-  while discounts%FOUND
-  loop
-    fetch discounts into disct;
-    calc_multiplier := calc_multiplier - disct;
-  end loop;
-
-  if calc_multiplier < 0
-  then
-    calc_multiplier := 0;
-  end if;
-
-  return calc_multiplier * total_cost;
-
-
-  RETURN NULL;
-END RENTAL_COST;
+    --fuel is not subject to discounts b/c then you could really lose money
+    return calc_multiplier * total_cost + (s_fuel - e_fuel * s_fuel) * 6.50; --arbitrary value
+  END RENTAL_COST;

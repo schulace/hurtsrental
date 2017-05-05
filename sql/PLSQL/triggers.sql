@@ -11,7 +11,7 @@ END;
 
   
 create or replace trigger PICKUP
-after update of pickup_occ on Rental
+before update of pickup_occ on Rental
 for each row
 begin
   if :new.pickup_occ = 1
@@ -21,15 +21,12 @@ begin
 end;
 
 create or replace TRIGGER DROPOFF
-after UPDATE OF DROPOFF_OCC ON RENTAL
+before UPDATE OF DROPOFF_OCC ON RENTAL
 referencing new as changed
 for each row
-  BEGIN
-    if :changed.dropoff_occ = 1
-    then
-      insert into at values(:changed.car_id, :changed.DROPOFF_LOC);
-    end if;
-  END;
+BEGIN
+  insert into at values(:changed.car_id, :changed.DROPOFF_LOC);
+END;
   
 create or replace trigger RESERVE_CAR
 before insert on rental

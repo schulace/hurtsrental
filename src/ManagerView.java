@@ -1,3 +1,4 @@
+
 import java.sql.*;
 import java.util.ArrayList;
 
@@ -18,6 +19,10 @@ public class ManagerView extends myView {
         options.put("add car type", () -> addCarType());
         options.put("add new car", () -> addCar());
         options.put("get revenue", () ->revenue());
+        options.put("add organization", () ->addOrg());
+        options.put("remove organization", () ->removeOrg());
+        options.put("remove car", () ->removeCar());
+        options.put("list organizations", () ->viewOrgs());
         looper("manager");
     }
 
@@ -60,14 +65,26 @@ public class ManagerView extends myView {
             conn.setAutoCommit(false);
             String make = (String) confirmPrior("car make", () -> mainRunner.getResponse("what is the make of this car?", null, "st", false));
             String model = (String) confirmPrior("car model", () -> mainRunner.getResponse("what is the model of this car?", null, "s", false));
-            String type = (String) confirmPrior("car type", () -> mainRunner.getResponse("What is the type of this car?", null, "s", false));
+            String type = (String) confirmPrior("type", () -> mainRunner.getResponse("What is the type of this car?", new ArrayList<String>(){{
+                add("SUV");
+                add("minicar");
+                add("subcompact");
+                add("compact");
+                add("fullsize");
+                add("sports car");
+                add("minivan");
+                add("truck");
+                add("other");
+            }}, "s", true));
             double rate = (Double) confirmPrior("rate", () -> mainRunner.getResponse("what is the daily cost for this car?", null, 0.3D, false));
+            int fuel_cap = (Integer) confirmPrior("fuel capacity", () -> mainRunner.getResponse("what is the  fuel capacity for this car?", null, 3, false));
             int yearStart = (Integer) confirmPrior("start year", () -> mainRunner.getResponse("waht is the year this car started to be made", null, 3, false));
             int yearEnd =  (Integer) confirmPrior("end year", () -> mainRunner.getResponse("waht is the year this car stopped being made", null, 3, false));
             iCar.setString(1, make);
             iCar.setString(2, model);
             iCar.setString(3, type);
             iCar.setDouble(4, rate);
+            iCar.setInt(6, fuel_cap);
             while(yearStart <= yearEnd){
                 iCar.setInt(5, yearStart);
                 try {
@@ -95,14 +112,26 @@ public class ManagerView extends myView {
             conn.setAutoCommit(false);
             String make = (String) confirmPrior("car make", () -> mainRunner.getResponse("what is the make of this car?", null, "st", false));
             String model = (String) confirmPrior("car model", () -> mainRunner.getResponse("what is the model of this car?", null, "s", false));
-            String type = (String) confirmPrior("car type", () -> mainRunner.getResponse("What is the type of this car?", null, "s", false));
+            String type = (String) confirmPrior("type", () -> mainRunner.getResponse("What is the type of this car?", new ArrayList<String>(){{
+                add("SUV");
+                add("minicar");
+                add("subcompact");
+                add("compact");
+                add("fullsize");
+                add("sports car");
+                add("minivan");
+                add("truck");
+                add("other");
+            }}, "s", true));
             double rate = (Double) confirmPrior("rate", () -> mainRunner.getResponse("what is the daily cost for this car?", null, 0.3D, false));
+            int fuel_cap = (Integer) confirmPrior("fuel capacity", () -> mainRunner.getResponse("what is the  fuel capacity for this car?", null, 3, false));
             int year = (Integer) confirmPrior("year", () -> mainRunner.getResponse("what is the year this car was made", null, 3, false));
             statement.setString(1, make);
             statement.setString(2, model);
             statement.setString(3, type);
             statement.setDouble(4, rate);
             statement.setInt(5, year);
+            statement.setInt(6, fuel_cap);
             statement.executeUpdate();
             conn.commit();
             System.out.println("successfully added type");
@@ -200,24 +229,82 @@ public class ManagerView extends myView {
         }
     }
 
+    private void removeCar(){
+        try(PreparedStatement bye = conn.prepareStatement(Queries.CAR_REMOVE)){
+            System.out.println("there are a lot of cars in the database. would you like to list them out?");
+            if((Boolean)mainRunner.getResponse("enter true or false", new ArrayList<Boolean>(){{add(true);add(false);}},false, false)){
+                showInv();
+            }
+            int id = (Integer) confirmPrior("id to delete", () -> mainRunner.getResponse("enter the ID of the car to be deleted", null, 4, false));
+            bye.setInt(1, id);
+            if(bye.executeUpdate() == 0){
+                System.out.println("no such car exists. nothing was deleted");
+                return;
+            }
+            answers.clear();
+        } catch (SQLException e){
+            System.out.println("something unexpected happened");
+            e.printStackTrace();
+        }
+    }
+
     private void revenue(){
         try(PreparedStatement stmnt = conn.prepareStatement(Queries.REVENUE)){
             System.out.println("enter a start date");
             java.sql.Date startDate = (java.sql.Date)confirmPrior("start date", () -> new java.sql.Date(mainRunner.getDateResponse().getTime()));
             System.out.println("enter an end date");
             java.sql.Date endDate = (java.sql.Date)confirmPrior("end date", () -> new java.sql.Date(mainRunner.getDateResponse().getTime()));
-            stmnt.setDate(2, startDate);
-            stmnt.setDate(3, endDate);
-            double fuel_ppg = 0;
-            while(fuel_ppg <= 0) {
-                fuel_ppg = (Double) confirmPrior("fuel price", () -> mainRunner.getResponse("what's the current price of fuel per gallon (must be > 0)?", null, 0.3D, false));
-            }
-            stmnt.setDouble(1, fuel_ppg);
+            stmnt.setDate(1, startDate);
+            stmnt.setDate(2, endDate);
             ResultSet set = stmnt.executeQuery();
             mainRunner.printSet(set);
             answers.clear();
         } catch (SQLException ex) {
             System.out.println("couldn't connect to server properly");
+        }
+    }
+
+    private void addOrg(){
+        try(PreparedStatement org_add = conn.prepareStatement(Queries.ADD_ORG)){
+            conn.setAutoCommit(true);
+            String org_name = (String) confirmPrior("organization name", () -> mainRunner.getRegexResponse("what is the name of your org?", "^[A-Za-z\\s\\d]{0,40}$"));
+            String code = (String) confirmPrior("code", () -> mainRunner.getRegexResponse("discount code? (no spaces)", "^[\\w]{0,20}"));
+            double disct_pct = (Double) confirmPrior("discount percent", () -> mainRunner.getResponse("what is the discount % (as decimal < 1)", null, 0.4D, false));
+            org_add.setString(1, org_name);
+            org_add.setString(2, code);
+            org_add.setDouble(3, disct_pct);
+            org_add.executeUpdate();
+            System.out.println("organization successfully added");
+        } catch (SQLException e){
+            System.out.println("couldn't properly communicate with the server. sorry :(");
+        }
+    }
+
+    private void removeOrg(){
+        try(PreparedStatement org_del = conn.prepareStatement(Queries.REMOVE_ORG);
+            PreparedStatement org_l = conn.prepareStatement(Queries.ORG_LIST)) {
+
+            ResultSet r1 = org_l.executeQuery();
+            ArrayList<String> resps = new ArrayList<String>();
+            while(r1.next()){
+                resps.add(r1.getString(1).toLowerCase());
+            }
+
+            String org_name = (String) confirmPrior("organization name", () -> mainRunner.getResponse("what's the org name you're removing?", resps, "st", true));
+            org_del.setString(1, org_name);
+            org_del.executeUpdate();
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+
+    }
+
+    private void viewOrgs(){
+        try(PreparedStatement st = conn.prepareStatement(Queries.VIEW_ORGS)){
+            ResultSet set = st.executeQuery();
+            mainRunner.printSet(set);
+        } catch (SQLException e){
+            System.out.println("couldn't properly communicate with the database");
         }
     }
 }

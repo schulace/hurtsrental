@@ -13,6 +13,8 @@ public abstract class myView {
     public Connection conn;
     public HashMap<String, Object> answers;
 
+    //TODO update dropoff to take a percentage again
+
     public myView(Connection conn)
     {
         this.conn = conn;
@@ -77,7 +79,7 @@ public abstract class myView {
 
         } catch (SQLException e){
             System.out.println("ahhh. you're trying to go back in time. not allowed!");
-            //e.printStackTrace();
+            e.printStackTrace();
             try {
                 conn.rollback();
             } catch (SQLException e1) {

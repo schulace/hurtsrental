@@ -135,7 +135,7 @@ execute removedata;
     for t in vehi_type:
         for year in range(t[3], t[4] + 1):
             rate = str(random.randrange(50, 150))
-            outfile.write("insert into vehi_type(make, type, model, rate, year) VALUES  ('{}', '{}', '{}', {}, {});\n".format(t[0], t[1], t[2], rate, str(year)))
+            outfile.write("insert into vehi_type(make, type, model, rate, year, fuel_capacity) VALUES  ('{}', '{}', '{}', {}, {}, {});\n".format(t[0], t[1], t[2], rate, str(year), random.randint(8,20)))
     #customers
     for f in fnames:
         for l in lnames:

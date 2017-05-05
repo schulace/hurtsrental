@@ -20,6 +20,7 @@ create table vehi_type(
     type varchar(20) check (type in ('SUV', 'minicar', 'subcompact', 'compact', 'fullsize', 'sports car', 'minivan', 'truck', 'other')),
     rate numeric(6,2),
     year numeric(4,0),
+    fuel_capacity numeric(2,0),
     primary key(type_id)
 );
 
@@ -59,7 +60,6 @@ create table rental(
     pickup_occ numeric(1,0),
     dropoff_loc numeric(12,0),
     dropoff_occ numeric(1,0),
-    start_fuel numeric(5,3),
     end_fuel numeric(4,3),
     foreign key (car_id) references car on delete set null,
     foreign key (cust_id) references customer,
@@ -192,4 +192,3 @@ alter table car add constraint car_plate_unique unique (plate_number, state);
 alter table location add constraint location_unique_addr unique (street_addr, city, state, zip);
 alter table customer add constraint cust_unique_license unique (license_st, license_number);
 alter table organization add constraint org_unique_code unique (code);
-alter table rental add constraint e_f_lt_s_f check(end_fuel <= start_fuel or end_fuel is null);

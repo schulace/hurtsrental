@@ -329,6 +329,7 @@ public class CustomerView extends myView {
             mainRunner.printSet(set3);
         } catch (SQLException e) {
             System.out.println("couldn't connect to server :(");
+            e.printStackTrace();
         }
     }
 
@@ -426,12 +427,10 @@ public class CustomerView extends myView {
             confirmPrior("to update id", () -> mainRunner.getResponse("select from above", rentalIDs, 0, false));
             int id_to_update = (int) answers.get("to update id");
             final_cost.setInt(1, id_to_update);
-            double fuel_ppg = 0;
-            while(fuel_ppg <= 0) {
-                fuel_ppg = (Double) confirmPrior("fuel price", () -> mainRunner.getResponse("what's the current price of fuel (per gallon)?", null, 0.3D, false));
+            double endFuel = -1;
+            while(endFuel < 0 || endFuel > 1) {
+                endFuel = (Double) confirmPrior("end fuel", () -> mainRunner.getResponse("how much fuel is left on return (as decimal between 0 and 1)", null, 0.3D, false));
             }
-            final_cost.setDouble(2, fuel_ppg);
-            double endFuel = (Double) confirmPrior("end fuel", () -> mainRunner.getResponse("how much fuel is left on return (gallons)", null, 0.3D, false));
             update.setInt(2, id_to_update);
             update.setDouble(1, endFuel);
             update.executeUpdate(); //could throw integrity violation in the event that we end fuel > start.
@@ -448,6 +447,7 @@ public class CustomerView extends myView {
             answers.clear();
         } catch (SQLIntegrityConstraintViolationException ex){
             System.out.println("end fuel can't be more than start fuel (your inputs are saved, you can try this method again)");
+            ex.printStackTrace();
             try {
                 conn.rollback();
             } catch (SQLException e) {
