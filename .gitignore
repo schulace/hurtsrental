@@ -4,3 +4,4 @@ ojdbc7.jar
 **.idea
 out
 lib
+output.sql
