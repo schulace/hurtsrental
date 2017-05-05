@@ -35,17 +35,17 @@ public class ManagerView extends myView {
 
     private void showRentals() {
         try (Statement s = getStatement(conn)){
-            ResultSet set = s.executeQuery(Queries.LIST_ALL_RENTALS_PAST); //TODO flesh this out
+            ResultSet set = s.executeQuery(Queries.LIST_ALL_RENTALS_PAST);
             System.out.println("completed rentals");
             mainRunner.printSet(set);
             System.out.println("---------------------------------------------------");
 
-            ResultSet set2 = s.executeQuery(Queries.LIST_ALL_RENTALS_CURRENT); //TODO flesh this out
+            ResultSet set2 = s.executeQuery(Queries.LIST_ALL_RENTALS_CURRENT);
             System.out.println("current rentals");
             mainRunner.printSet(set2);
             System.out.println("---------------------------------------------------");
 
-            ResultSet set3 = s.executeQuery(Queries.LIST_ALL_RENTALS_RESERVED); //TODO flesh this out
+            ResultSet set3 = s.executeQuery(Queries.LIST_ALL_RENTALS_RESERVED);
             System.out.println("reservations");
             mainRunner.printSet(set3);
             System.out.println("---------------------------------------------------");

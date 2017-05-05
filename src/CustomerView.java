@@ -134,7 +134,6 @@ public class CustomerView extends myView {
 
     }
 
-
     @Override
     void run() {
         options.put("reserve car", () -> reserveCar());
@@ -341,14 +340,13 @@ public class CustomerView extends myView {
             conn.setAutoCommit(false);
 
             unavail.setInt(1, customer_id);
-            unavail.setInt(2, customer_id);
 
             ResultSet noPick2 = unavail.executeQuery();
             ArrayList<Integer>toDelete = new ArrayList<Integer>();
             while(noPick2.next()){
                 toDelete.add(noPick2.getInt(1));
             }
-            if(toDelete.size() >= 0){
+            if(toDelete.size() > 0){
                 ResultSet noPick = unavail.executeQuery();
                 System.out.println("the following reservations are unavailable due to a car not being returned and will be canceled.");
                 mainRunner.printSet(noPick);
@@ -422,7 +420,9 @@ public class CustomerView extends myView {
             fix_dropoff_date.setInt(1, customer_id); //sets dropoff date to the max of either today's date or the reserved end date
             fix_dropoff_date.executeUpdate();
             System.out.println("select which rental you'd like to drop off from the following list by ID");
-            listRentals();
+            ResultSet printableSet = statement.executeQuery();
+            mainRunner.printSet(printableSet);
+            //listRentals(); //used to work before this becamse more sophistocated
             confirmPrior("to update id", () -> mainRunner.getResponse("select from above", rentalIDs, 0, false));
             int id_to_update = (int) answers.get("to update id");
             final_cost.setInt(1, id_to_update);
@@ -431,10 +431,11 @@ public class CustomerView extends myView {
                 fuel_ppg = (Double) confirmPrior("fuel price", () -> mainRunner.getResponse("what's the current price of fuel (per gallon)?", null, 0.3D, false));
             }
             final_cost.setDouble(2, fuel_ppg);
-            ResultSet set1 = final_cost.executeQuery();
             double endFuel = (Double) confirmPrior("end fuel", () -> mainRunner.getResponse("how much fuel is left on return (gallons)", null, 0.3D, false));
             update.setInt(2, id_to_update);
+            update.setDouble(1, endFuel);
             update.executeUpdate(); //could throw integrity violation in the event that we end fuel > start.
+            ResultSet set1 = final_cost.executeQuery();
             if (!set1.next()) {
                 System.out.println("shiitttttt. this shouldn't happen. aborting");
                 conn.rollback();
@@ -443,15 +444,20 @@ public class CustomerView extends myView {
             }
             int total = set1.getInt(1);
             System.out.println("you were 'charged' for $" + total + " for your rental. Have a nice day");
-            update.executeUpdate();
             conn.commit();
             answers.clear();
         } catch (SQLIntegrityConstraintViolationException ex){
             System.out.println("end fuel can't be more than start fuel (your inputs are saved, you can try this method again)");
+            try {
+                conn.rollback();
+            } catch (SQLException e) {
+                System.out.println("db write failed, and so did rollback. thanks oracle");
+            }
             return;
         } catch (SQLException e) {
             try {
                 System.out.println("something went wrong. aborting transaction");
+                e.printStackTrace();
                 conn.rollback();
             } catch (SQLException e1) {
                 System.out.println("db write failed, and so did rollback. thanks oracle");
