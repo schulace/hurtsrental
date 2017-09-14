@@ -183,23 +183,21 @@ public class mainRunner {
     /**
      * logs the user into the database
      */
-    public static Connection login() throws SQLException{
-        return DriverManager.getConnection("jdbc:oracle:thin:@edgar0.cse.lehigh.edu:1521:cse241",
-                "ajs500", "WhiteSnow1");
-//        System.out.print("Please enter your userName:");
-//        String name = scan.nextLine();
-//        System.out.print("Please enter your password:");
-//        String pass = scan.nextLine();
-//        try {
-//            //fairly certain I'm fine not closing here because failed connections return null;
-//            Connection connection = DriverManager.getConnection("jdbc:oracle:thin:@edgar0.cse.lehigh.edu:1521:cse241",
-//                    name, pass);
-//            System.out.println("successfully authenticated and connected to database\n");
-//            return connection;
-//        } catch (Exception e) {
-//            System.out.println("invalid login, try again\n");
-//            return login();
-//        }
+    public static Connection login() throws SQLException {
+        System.out.print("Please enter your userName:");
+        String name = scan.nextLine();
+        System.out.print("Please enter your password:");
+        String pass = scan.nextLine();
+        try {
+            //fairly certain I'm fine not closing here because failed connections return null;
+            Connection connection = DriverManager.getConnection("jdbc:oracle:thin:@edgar0.cse.lehigh.edu:1521:cse241",
+                    name, pass);
+            System.out.println("successfully authenticated and connected to database\n");
+            return connection;
+        } catch (Exception e) {
+            System.out.println("invalid login, try again\n");
+            return login();
+        }
     }
 
     /**

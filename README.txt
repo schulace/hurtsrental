@@ -1,6 +1,11 @@
 Alexander Schuler. CSE241, spring 2017
 
-This program is brooken up into a customer interface and a managerial interface.
+This was a final project for a Databases course. The idea was to create a
+relational design for a rental car company and then implement a basic command
+line interface for it in java using JDBC. All SQL creation code is in the sql
+folder, while java is inside of src.
+
+This program is broken up into a customer interface and a managerial interface.
 The customer interface is designed in more of a manner as to be used by an
 employee helping a customer rent or reserve vehicles, but also includes ways for
 a customer to view their past rental history, currently active rentals, and
